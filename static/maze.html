@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SwarmLab · Sleep-time memory lab</title>
+  <link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="/" aria-label="SwarmLab home"><span class="mark">✳</span> SwarmLab <span class="edition">RESEARCH LAB / 01</span></a><div class="top-actions"><span class="pill" id="connection-pill">Local workspace</span><button id="connections-toggle" class="quiet">Connections ↗</button></div></header>
+<main>
+  <section class="intro"><div><p class="eyebrow">EXPERIENCE → PREPARATION → TRANSFER</p><h1>Let experience<br><em>outlive the agent.</em></h1><p class="lede">Explore a world. Prepare evidence-linked memory during sleep.<br>See what a fresh agent can do with it.</p></div><aside class="experiment-note"><span class="tiny-label">THE EXPERIMENT</span><p>One model. Three robot bodies.<br>A new context, with a shared past.</p><span class="model-label">Gemini · FalkorDB</span></aside></section>
+
+  <section id="connections" class="panel connections" hidden>
+    <div class="panel-head"><div><span class="eyebrow">LOCAL CONFIGURATION</span><h2>Connect the lab</h2></div><span class="muted">Secrets stay in your local .env file</span></div>
+    <form id="connection-form"><div class="connection-grid">
+      <label>Database host<input id="host" name="host" value="127.0.0.1" required autocomplete="off"></label>
+      <label>Port<input id="port" type="number" value="6379" min="1" max="65535" required></label>
+      <label>Username <span class="muted">optional locally</span><input id="username" autocomplete="off"></label>
+      <label>Database password <span class="muted">optional locally</span><input id="password" type="password" autocomplete="new-password" placeholder="Leave empty to keep saved value"></label>
+      <label class="key-field">Gemini API key<input id="api-key" type="password" autocomplete="new-password" placeholder="Enter locally; never included in experiment logs"></label>
+      <label class="checkbox"><input id="tls" type="checkbox"> Use TLS for this database connection</label>
+    </div><div class="form-actions"><button class="primary" type="submit">Save connections</button><button type="button" id="check-connections" class="secondary">Check connections</button><span class="muted">Gemini 3.5 Flash-Lite · Requests spaced 5s apart; temporary rate limits pause automatically. Runs allow up to 10 minutes. Use a Free-tier Google project.</span></div></form>
+    <p id="connection-result" role="status" class="status-line">Local Docker uses port 6379, no password, and TLS off.</p>
+  </section>
+
+  <section class="phases" aria-label="Experiment phases">
+    <div class="phase"><span class="phase-number">01</span><div><h3>Explore</h3><p>Collect real observations</p></div><span class="phase-dot"></span></div>
+    <div class="phase"><span class="phase-number">02</span><div><h3>Sleep</h3><p>Prepare candidate knowledge</p></div><span class="phase-dot"></span></div>
+    <div class="phase"><span class="phase-number">03</span><div><h3>Transfer</h3><p>Start a fresh context</p></div><span class="phase-dot"></span></div>
+    <div class="phase"><span class="phase-number">04</span><div><h3>Compare</h3><p>Measure the difference</p></div><span class="phase-dot"></span></div>
+  </section>
+
+  <section class="workspace">
+    <div class="panel world-panel"><div class="panel-head"><h2>World observation</h2><span id="run-mode" class="pill">Awaiting experiment</span></div>
+      <div class="world-stage"><svg id="world" viewBox="0 0 540 420" role="img" aria-label="World grid. No experiment has run yet."></svg><div id="world-empty"><span class="empty-glyph">⌘</span><h3>Your next observation starts here.</h3><p>Run exploration to watch the controller act.<br>The simulator alone knows the hidden rule.</p><button id="preview" class="secondary">Preview engine</button><small>Preview is a synthetic engine view, not an AI run.</small></div></div>
+      <div class="world-footer"><div class="legend"><span><i class="robot-a"></i>A</span><span><i class="robot-b"></i>B</span><span><i class="robot-c"></i>C</span><span>◇ Switch</span><span>▥ Gate</span></div><span id="tick">Tick —</span></div>
+    </div>
+    <aside class="panel controls"><div class="panel-head"><h2>Run an experiment</h2><span class="tiny-label">BOUNDED RUNS</span></div>
+      <div class="input-row"><label>World seed<input id="seed" type="number" min="0" value="11"></label><label>Action limit<input id="actions" type="number" min="3" max="80" value="40"></label></div>
+      <label>Choose completed discovery<select id="episode-select"><option value="">Loading from FalkorDB…</option></select></label>
+      <label>Discovery episode ID<input id="episode-id" placeholder="Populated after exploration" autocomplete="off"></label>
+      <label>Choose prepared memory<select id="artifact-select"><option value="">Loading from FalkorDB…</option></select></label>
+      <label>Sleep artifact ID<input id="artifact-id" placeholder="Populated after preparation" autocomplete="off"></label>
+      <label>Transfer memory<select id="condition"><option value="sleep">Prepared graph memory</option><option value="local_rule">Local learning from FalkorDB (uses Gemini)</option><option value="raw">Raw experience</option><option value="none">No historical memory</option><option value="flat">Prepared memory as text</option></select></label>
+      <div class="run-buttons"><button id="explore" class="primary">01 &nbsp; Explore world →</button><button id="sleep" class="secondary">02 &nbsp; Prepare during sleep</button><button id="transfer" class="secondary">03 &nbsp; Run fresh-context transfer</button></div>
+      <div class="control-bottom"><button id="cancel" class="quiet" disabled>Stop after current request</button><span id="job-status" class="muted">Ready to connect</span></div>
+      <p class="micro">Live runs use your API key. Every action, failure, and token receipt is recorded. One job runs at a time.</p>
+    </aside>
+  </section>
+
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+  <section class="evidence-row">
+    <div class="panel"><div class="panel-head"><h2>Prepared memory</h2><button id="load-memory" class="quiet">Load artifact ↗</button></div><div id="memory-content" class="memory-content"><div class="empty"><span class="tiny-label">EVIDENCE BEFORE CONFIDENCE</span><p>Hypotheses and procedures appear after sleep.<br>They remain candidates until tested through action.</p></div></div></div>
+    <div class="panel"><div class="panel-head"><h2>Activity trace</h2><span id="event-count" class="tiny-label">0 OBSERVATIONS</span></div><ol id="timeline" class="timeline"><li class="empty">No model actions recorded.</li></ol></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Local learning · zero API calls</h2><span class="pill">No model key required</span></div>
+    <p>Learn from previous sensor records in FalkorDB, then test missing switch-occupancy cases locally. This is a symbolic learner for the two-switch world, not Gemini training. Each local run allows up to 250 simulator actions.</p>
+    <div class="form-actions"><button id="local-audit" class="secondary">1 · Review past events</button><button id="local-learn" class="primary">2 · Learn with local experiments</button><button id="local-transfer" class="secondary">3 · Transfer locally</button></div>
+    <label>Local transfer seed (must be unseen)<input id="local-seed" type="number" min="0" value="704"></label>
+    <pre id="local-rule-status">No local rule loaded.</pre>
+  </section>
+  <section class="panel results-panel"><div class="panel-head"><div><span class="eyebrow">MEASURE, THEN CLAIM</span><h2>Does preparation help?</h2></div><button id="evaluate" class="secondary">Run 9 comparisons →</button></div><p class="muted result-description">Three held-out layouts × no memory, raw experience, and prepared graph memory. Same model and online limits. Preparation cost is reported separately.</p><div class="table-scroll"><table><thead><tr><th>Memory condition</th><th>Seed</th><th>Outcome</th><th>Actions</th><th>Model calls</th><th>Online time</th></tr></thead><tbody id="results"><tr><td colspan="6" class="empty">No measured results yet. All attempts, including failures, will appear here.</td></tr></tbody></table></div></section>
+  <section class="replay-bar"><div><span class="tiny-label">RECORDED EXPERIMENTS</span><p>Inspect an earlier run without making new model calls.</p></div><div class="replay-actions"><select id="replay-select" aria-label="Recorded run"><option value="">No recordings yet</option></select><button id="refresh-replays" class="quiet">Refresh</button><button id="load-replay" class="secondary">Load replay</button><button id="play-replay" class="secondary" title="Per-action playback is available for newly recorded local runs" disabled>Play recorded actions</button></div></section>
+</main>
+<footer><span>SwarmLab / sleep-time memory experiments</span><span>Inspired by <a href="https://arxiv.org/abs/2504.13171" target="_blank" rel="noreferrer">Sleep-time Compute ↗</a></span></footer>
+</body></html>

@@ -1,0 +1,28 @@
+"use strict";
+const $=id=>document.getElementById(id);
+const names={source_a:"A · prior incident",source_b:"B · prior incident",none:"C · no memory",raw:"C · raw shared history",graph:"C · shared graph evidence"};
+let lab=null,job=null,timer=null,inFlight=false;
+function el(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
+async function api(path,data){const r=await fetch(path,data===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});const d=await r.json();if(!r.ok)throw new Error(typeof d.detail==="string"?d.detail:"Invalid input or server error");return d;}
+function error(e){$("error").textContent=e.message;$("error").hidden=false;}
+function busy(value){for(const id of ["create","pilot","train","compare","resume","labs"])$(id).disabled=value;$("cancel").disabled=!job;}
+async function safe(fn){$("error").hidden=true;try{await fn();}catch(e){error(e);}}
+function view(v){$("services").replaceChildren();for(const [name,status] of Object.entries(v.services)){const box=el("div");box.className="phase";box.append(el("h3",name),el("p",status.replaceAll("_"," ")));$("services").append(box);}$("telemetry").textContent=`Tick ${v.tick} · Processing: ${v.processing} · Pending: ${v.jobs_pending} · Lost: ${v.jobs_lost}`;}
+function runStatus(r){return r.status!=='complete'&&r.error?.code?.includes('quota')?'Incomplete · quota exhausted':r.status;}
+function show(d){lab=d.id;$("status").textContent=`${new Date(d.created_at).toLocaleString()} · ${d.id} · Protocol ${d.protocol_version||2} · ${d.calls_reserved}/${d.call_cap} requests reserved`;
+ $("scores").replaceChildren();$("traces").replaceChildren();for(const r of d.runs){const tr=el("tr"),s=r.score;for(const v of [names[r.kind],s?(s.success?"Restored, work preserved":s.restored?"Restored with loss":"Not restored"):runStatus(r),s?.jobs_lost??"—",s?.probes??"—",s?.repairs??"—",s?.disruptions??"—",r.calls.length])tr.append(el("td",String(v)));$("scores").append(tr);
+ const details=el("details");details.append(el("summary",`${names[r.kind]} · ${runStatus(r)} · ${r.retrieved_ids.length} retrieved records`));if(r.error)details.append(el("p",`${r.error.code}: ${r.error.message}`));
+ for(const [index,c] of r.calls.entries()){const card=el("article");card.className="memory-card";card.append(el("h3",`Decision ${index+1} · ${c.context.phase}`),el("p",c.decision?.rationale||c.status));const v=el("button","Show observation for this decision");v.className="quiet";v.onclick=()=>view(c.context.current_observation);card.append(v);const inspect=el("details");inspect.append(el("summary","Exact model context, response and usage"),el("pre",JSON.stringify(c,null,2)));card.append(inspect);details.append(card);}
+ for(const e of r.events){const item=el("article");item.className="memory-card";item.append(el("h3",e.action),el("p",JSON.stringify(e.outcome)),el("small",e.id));const button=el("button","Show resulting observation");button.className="quiet";button.onclick=()=>view(e.after);item.append(button);details.append(item);}$("traces").append(details);}
+ if(d.runs.length)view(d.runs.at(-1).events.at(-1)?.after||d.runs.at(-1).initial_view);
+ $("query").textContent=`MATCH (l:IncidentLab {id:'${lab}'})-[:HAS_RUN]->(r)\nOPTIONAL MATCH (r)-[edge]->(o:IncidentObservation)\nRETURN l,r,edge,o`;
+}
+async function refresh(){const d=await api('/api/incidents');$("labs").replaceChildren();const blank=el("option","Select a lab");blank.value="";$("labs").append(blank);for(const l of d.labs){const o=el("option",`${new Date(l.created_at).toLocaleString()} · ${l.variant} · ${l.id.slice(-8)}`);o.value=l.id;$("labs").append(o);}$("labs").value=lab||"";return d.labs;}
+async function poll(){if(!job||inFlight)return;inFlight=true;try{const d=await api(`/api/jobs/${job}`);if(lab)show(await api(`/api/incidents/${lab}`));const p=d.incident_progress;$("status").textContent+=` · ${d.status}${p?` · ${names[p.kind]} / ${p.phase}`:""}${d.rate_wait_seconds?` · waiting ${d.rate_wait_seconds}s`:""}`;if(!["queued","running"].includes(d.status)){clearInterval(timer);timer=null;job=null;busy(false);if(d.error)error(new Error(`Run stopped: ${d.error.code}. Inspect the saved incident trace.`));}}catch(e){error(e);}finally{inFlight=false;}}
+async function start(mode){await safe(async()=>{if(!lab)throw new Error("Create or select a lab first.");busy(true);try{const d=await api('/api/incident-jobs',{lab_id:lab,mode,extra_requests:mode==='resume'?Number($('extra').value):0});job=d.id;busy(true);timer=setInterval(poll,2000);await poll();}catch(e){busy(false);throw e;}});}
+$("create").onclick=()=>safe(async()=>{busy(true);try{show(await api('/api/incidents',{seed:Number($("seed").value),variant:$("variant").value}));await refresh();}finally{busy(false);}});
+for(const mode of ['pilot','train','compare','resume'])$(mode).onclick=()=>start(mode);
+$("cancel").onclick=()=>safe(async()=>{if(job)await api(`/api/jobs/${job}/cancel`,{});});
+$("reload").onclick=()=>safe(async()=>{if(lab)show(await api(`/api/incidents/${lab}`));await refresh();});
+$("labs").onchange=()=>safe(async()=>{if($("labs").value)show(await api(`/api/incidents/${$("labs").value}`));});
+safe(async()=>{const labs=await refresh();const jobs=await api('/api/jobs');const active=jobs.jobs.find(j=>['queued','running'].includes(j.status));if(active){if(active.action==='incident'){lab=active.params.lab_id;job=active.id;busy(true);timer=setInterval(poll,2000);await poll();}else{busy(true);$("status").textContent='A maze run is active. Refresh when it completes.';}}else if(labs.length){show(await api(`/api/incidents/${labs[0].id}`));$("labs").value=lab;}});
